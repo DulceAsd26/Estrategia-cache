@@ -3,8 +3,10 @@
 //const CACHE_NAME = 'cache-1';
 const CACHE_STATIC_NAME = 'static-v2';
 const CACHE_DYNAMIC_NAME = 'dynamic-v1';
-
 const CACHE_INMUTABLE_NAME = 'inmutable-v1';
+
+const CACHE_DYNAMIC_LIMIT = 50;
+
 
 
 
@@ -16,7 +18,11 @@ function limpiarCache( cacheName, numeroItems ) {
 
             return cache.keys()
                 .then( keys => {
-                    console.log(keys);
+                    
+                    if( keys.length > numeroItems ){
+                        cache.delete( keys[0])
+                                .then( limpiarCache(cacheName, numeroItems) );
+                    }
                 });
 
 
@@ -55,40 +61,61 @@ self.addEventListener('install', e => {
 
 self.addEventListener('fetch', e =>{
 
+    // 3- Network with cache fallback
+    const respuesta = fetch( e.request ).then( res => {
 
+        if( !res ) return caches.match( e.request);
 
-    
-    //2- Cache with Network Fallback
-   const respuesta = caches.match( e.request )
-        .then( res => {
-
-            if( res ) return res;
-
-            //No existe el arcivo
-            //Tengo que ir a la web
-            console.log('No existe', e.request.url);
-
-
-            return fetch( e.request ).then( newResp => {
-
-                caches.open( CACHE_DYNAMIC_NAME )
-                    .then(cache => {
-                        cache.put( e.request, newResp );
-                        limpiarCache( CACHE_DYNAMIC_NAME, 5);
-                    });
-
-                return newResp.clone();
+        caches.open( CACHE_DYNAMIC_NAME )
+            .then( cache => {
+                cache.put( e.request, res );
+                limpiarCache( CACHE_DYNAMIC_NAME, CACHE_DYNAMIC_LIMIT )
             });
 
 
-        });
+            return res.clone();
+    }).catch( err => {
+        return caches.match( e.request );
+    });
+
+
+
+
+    e.respondWith(respuesta);
+
+
+
+    //2- Cache with Network Fallback
+   //const respuesta = caches.match( e.request )
+        //.then( res => {
+
+            //if( res ) return res;
+
+            //No existe el arcivo
+            //Tengo que ir a la web
+            //console.log('No existe', e.request.url);
+
+
+            //return fetch( e.request ).then( newResp => {
+
+                //caches.open( CACHE_DYNAMIC_NAME )
+                 //   .then(cache => {
+               //         cache.put( e.request, newResp );
+             //           limpiarCache( CACHE_DYNAMIC_NAME, 5);
+           //         });
+
+         //       return newResp.clone();
+       //     });
+
+
+     //   });
 
 
 
         
 
 
-    e.respondWith( respuesta );
+   // e.respondWith( respuesta );
 
 
     //1- Cache Only
